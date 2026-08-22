@@ -9,6 +9,7 @@
 //! - `parseConfig(config)`: validate TOML config text.
 //! - `runNetworkInstance(config)`: start a local network instance.
 //! - `retainNetworkInstance(instanceNames)`: retain named instances and stop the rest.
+//! - `deleteNetworkInstance(instanceNames)`: delete named instances and keep the rest.
 //! - `listInstances()`: return running instance names and IDs as JSON.
 //! - `collectNetworkInfos()`: return running instance info as a JSON string.
 //! - `callJsonRpc(...)`: call an exposed EasyTier RPC service with JSON payload.
@@ -104,6 +105,25 @@ pub extern "system" fn Java_com_easytier_jni_EasyTierJNI_retainNetworkInstance(
 ) -> jint {
     logger::init();
     network_api::retain_network_instance_jni(env, class, instance_names)
+}
+
+/// Delete the named network instances without touching other instances.
+///
+/// Java signature:
+/// `EasyTierJNI.deleteNetworkInstance(instanceNames: Array<String>?): Int`
+///
+/// Only the named instances are stopped; unknown names are ignored. Passing
+/// `null` or an empty array is a no-op and does not stop anything, unlike
+/// `retainNetworkInstance`. Null elements inside a non-empty array are
+/// invalid. On failure this returns `-1` and throws `RuntimeException`.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_easytier_jni_EasyTierJNI_deleteNetworkInstance(
+    env: JNIEnv,
+    class: JClass,
+    instance_names: JObjectArray,
+) -> jint {
+    logger::init();
+    network_api::delete_network_instance_jni(env, class, instance_names)
 }
 
 /// Collect running network instance information.

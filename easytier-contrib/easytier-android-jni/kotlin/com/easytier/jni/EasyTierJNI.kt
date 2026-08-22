@@ -74,6 +74,14 @@ object EasyTierJNI {
     @JvmStatic external fun retainNetworkInstance(instanceNames: Array<String>?): Int
 
     /**
+     * 删除指定的网络实例，不影响其他实例
+     * @param instanceNames 要删除的实例名称数组，传入 null 或空数组时不做任何操作
+     * @return 0 表示成功，-1 表示失败
+     * @throws RuntimeException 当操作失败时抛出异常
+     */
+    @JvmStatic external fun deleteNetworkInstance(instanceNames: Array<String>?): Int
+
+    /**
      * 收集网络信息
      * @param maxLength 最大返回条目数
      * @return 包含网络信息的 JSON 字符串
@@ -143,5 +151,16 @@ object EasyTierJNI {
     @JvmStatic
     fun retainSingleInstance(instanceName: String): Int {
         return retainNetworkInstance(arrayOf(instanceName))
+    }
+
+    /**
+     * 便利方法：删除单个网络实例，不影响其他实例
+     * @param instanceName 要删除的实例名称
+     * @return 0 表示成功，-1 表示失败
+     * @throws RuntimeException 当操作失败时抛出异常
+     */
+    @JvmStatic
+    fun deleteSingleInstance(instanceName: String): Int {
+        return deleteNetworkInstance(arrayOf(instanceName))
     }
 }

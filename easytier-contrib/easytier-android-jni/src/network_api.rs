@@ -2,7 +2,8 @@ use std::{ffi::CStr, ptr};
 
 use easytier::proto::api::manage::{NetworkInstanceRunningInfo, NetworkInstanceRunningInfoMap};
 use easytier_ffi::{
-    KeyValuePair, collect_network_infos, free_string, list_instance, parse_config,
+    KeyValuePair, collect_network_infos, delete_network_instance, free_string, list_instance,
+    parse_config,
     retain_network_instance, run_network_instance, set_tun_fd,
 };
 use jni::JNIEnv;
@@ -158,6 +159,82 @@ fn retain_all(env: &mut JNIEnv) -> jint {
         result
     }
 }
+
+/// # Safety
+/// Delete named network instances without touching other instances.
+pub(crate) fn delete_network_instance_jni(
+    mut env: JNIEnv,
+    _class: JClass,
+    instance_names: JObjectArray,
+) -> jint {
+    // Mirrors the FFI contract: deleting nothing is a no-op, so a null or
+    // empty array must not stop every instance.
+    if instance_names.is_null() {
+        return 0;
+    }
+
+    let array_length = match env.get_array_length(&instance_names) {
+        Ok(len) => len as usize,
+        Err(e) => {
+            throw_exception(&mut env, &format!("Failed to get array length: {:?}", e));
+            return -1;
+        }
+    };
+
+    if array_length == 0 {
+        return 0;
+    }
+
+    let mut c_strings = Vec::with_capacity(array_length);
+    let mut c_string_ptrs = Vec::with_capacity(array_length);
+
+    for i in 0..array_length {
+        let java_string = match env.get_object_array_element(&instance_names, i as i32) {
+            Ok(obj) => obj,
+            Err(e) => {
+                throw_exception(
+                    &mut env,
+                    &format!("Failed to get array element {}: {:?}", i, e),
+                );
+                return -1;
+            }
+        };
+
+        if java_string.is_null() {
+            throw_exception(
+                &mut env,
+                &format!("Invalid instance name at index {}: null", i),
+            );
+            return -1;
+        }
+
+        let jstring = JString::from(java_string);
+        let c_string = match jstring_to_cstring(&mut env, &jstring) {
+            Ok(cstr) => cstr,
+            Err(e) => {
+                throw_exception(
+                    &mut env,
+                    &format!("Invalid instance name at index {}: {}", i, e),
+                );
+                return -1;
+            }
+        };
+
+        c_string_ptrs.push(c_string.as_ptr());
+        c_strings.push(c_string);
+    }
+
+    unsafe {
+        let result = delete_network_instance(c_string_ptrs.as_ptr(), c_string_ptrs.len());
+        if result != 0
+            && let Some(error) = get_last_error()
+        {
+            throw_exception(&mut env, &error);
+        }
+        result
+    }
+}
+
 
 pub(crate) fn collect_network_infos_jni(
     mut env: JNIEnv,

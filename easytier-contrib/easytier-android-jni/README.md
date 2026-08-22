@@ -239,6 +239,8 @@ public class EasyTierVpnService extends VpnService {
 | `runNetworkInstance(String config)` | 启动网络实例 | config: 配置字符串 | 0=成功, -1=失败 |
 | `setTunFd(String instanceName, int fd)` | 设置 TUN 文件描述符 | instanceName: 实例名, fd: 文件描述符 | 0=成功, -1=失败 |
 | `retainNetworkInstance(String[] names)` | 保留指定实例 | names: 实例名数组 | 0=成功, -1=失败 |
+| `deleteNetworkInstance(String[] names)` | 删除指定实例，不影响其他实例 | names: 实例名数组，null/空数组为无操作 | 0=成功, -1=失败 |
+| `deleteSingleInstance(String name)` | 删除单个实例 | name: 实例名 | 0=成功, -1=失败 |
 | `collectNetworkInfos(int maxLength)` | 收集网络信息 | maxLength: 最大条目数 | 信息字符串数组 |
 | `collectNetworkInfosAsMap(int maxLength)` | 收集网络信息为 Map | maxLength: 最大条目数 | Map<String, String> |
 | `getLastError()` | 获取最后错误 | 无 | 错误消息字符串 |
