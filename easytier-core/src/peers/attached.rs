@@ -75,13 +75,8 @@ impl AttachedCredentialRegistration {
             network_runtime_config.snapshot().as_ref(),
             &configured_groups,
         );
-        let credential_id = network_peer_manager.register_ephemeral_credential(
-            public_key,
-            groups,
-            false,
-            Vec::new(),
-            false,
-        )?;
+        let credential_id =
+            network_peer_manager.register_ephemeral_credential(public_key, groups)?;
         let task_peer_manager = network_peer_manager.clone();
         let policy_task = tokio::spawn(async move {
             while peer_changes.changed().await.is_ok() {
@@ -189,16 +184,15 @@ impl AttachedPeerRuntime {
         let runtime_handle = Handle::current();
         let network = network_runtime_config.snapshot();
         let (peer_snapshot, credential_public_key) = build_peer_snapshot(&network, &config)?;
-        let credential_registration = credential_public_key
-            .map(|public_key| {
-                AttachedCredentialRegistration::register(
-                    network_peer_manager.clone(),
-                    network_runtime_config.clone(),
-                    public_key,
-                    config.groups.clone(),
-                )
-            })
-            .transpose()?;
+        let credential_registration = match credential_public_key {
+            Some(public_key) => Some(AttachedCredentialRegistration::register(
+                network_peer_manager.clone(),
+                network_runtime_config.clone(),
+                public_key,
+                config.groups.clone(),
+            )?),
+            None => None,
+        };
         let services = build_attached_services(&network.services, credential_public_key.is_some());
         let runtime_config = CoreRuntimeConfigStore::new(services, Arc::new(peer_snapshot.clone()));
         let (packet_sender, packet_receiver) = host_packet_channel();
@@ -212,6 +206,7 @@ impl AttachedPeerRuntime {
                 exit_nodes: Vec::new(),
                 foreign_context_default_flags: flags,
             },
+            Vec::new(),
             runtime_config,
             Arc::new(()),
             packet_sender,
@@ -623,6 +618,7 @@ mod tests {
         let peer_manager = Arc::new(
             PeerManagerCore::new(
                 portable,
+                Vec::new(),
                 store.clone(),
                 Arc::new(()),
                 packet_sender,

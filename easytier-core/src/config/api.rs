@@ -4,7 +4,10 @@ use easytier_proto::api::manage::{
     self, NetworkConfig, NetworkingMethod, PortForwardConfig as ApiPortForwardConfig,
 };
 
-use super::toml::{ConfigLoader as _, TomlConfig};
+use super::{
+    api_input::managed_credential_to_proto,
+    toml::{ConfigLoader as _, TomlConfig},
+};
 
 pub fn network_config_from_toml(config: &TomlConfig) -> NetworkConfig {
     let default_config = TomlConfig::default();
@@ -118,6 +121,11 @@ pub fn network_config_from_toml(config: &TomlConfig) -> NetworkConfig {
     result.credential_file = config
         .get_credential_file()
         .map(|path| path.to_string_lossy().into_owned());
+    result.managed_credentials = config
+        .get_managed_credentials()
+        .into_iter()
+        .map(managed_credential_to_proto)
+        .collect();
 
     let flags = config.get_flags();
     let default_flags = default_config.get_flags();
@@ -171,4 +179,39 @@ pub fn network_config_from_toml(config: &TomlConfig) -> NetworkConfig {
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::toml::ManagedCredentialConfig;
+
+    #[test]
+    fn includes_managed_credentials() {
+        let config = TomlConfig::default();
+        config.set_managed_credentials(vec![ManagedCredentialConfig {
+            credential_id: "managed-a".to_owned(),
+            credential_secret: "credential-secret".to_owned(),
+            groups: vec!["ops".to_owned()],
+            allow_relay: true,
+            allowed_proxy_cidrs: vec!["10.0.0.0/24".to_owned()],
+            expiry_unix: 2_000_000_000,
+            reusable: false,
+        }]);
+
+        let projected = network_config_from_toml(&config);
+
+        assert_eq!(
+            projected.managed_credentials,
+            vec![manage::ManagedCredentialConfig {
+                credential_id: "managed-a".to_owned(),
+                credential_secret: "credential-secret".to_owned(),
+                groups: vec!["ops".to_owned()],
+                allow_relay: true,
+                allowed_proxy_cidrs: vec!["10.0.0.0/24".to_owned()],
+                expiry_unix: 2_000_000_000,
+                reusable: Some(false),
+            }]
+        );
+    }
 }
